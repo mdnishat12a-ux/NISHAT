@@ -24,11 +24,15 @@ jobs:
           ROOT=$(find project -name settings.gradle -printf '%h\n' | head -1)
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
 
-      - name: Add Kotlin support
+      - name: Add Kotlin and Java 17 support
         run: |
           cd "$PROJECT_ROOT"
+
           sed -i "s/id 'com.android.application' version '8.7.3' apply false/id 'com.android.application' version '8.7.3' apply false\n    id 'org.jetbrains.kotlin.android' version '2.0.21' apply false/" build.gradle
+
           sed -i "/id 'com.android.application'/a\\    id 'org.jetbrains.kotlin.android'" app/build.gradle
+
+          sed -i '/compileSdk 35/a\\    compileOptions {\\n        sourceCompatibility JavaVersion.VERSION_17\\n        targetCompatibility JavaVersion.VERSION_17\\n    }\\n    kotlinOptions {\\n        jvmTarget = "17"\\n    }' app/build.gradle
 
       - name: Setup Java
         uses: actions/setup-java@v5
