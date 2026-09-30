@@ -1,0 +1,80 @@
+name: Build Nishat AI APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract Nishat AI project
+        run: |
+          rm -rf project
+          mkdir project
+          unzip -q NishatAI_RealAI.zip -d project
+
+      - name: Find project root
+        run: |
+          ROOT=$(find "$GITHUB_WORKSPACE/project" -name settings.gradle -type f | head -1 | xargs dirname)
+          echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Project root: $ROOT"
+
+      - name: Enable Kotlin
+        working-directory: ${{ env.PROJECT_ROOT }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("build.gradle")
+          s = root.read_text()
+
+          if "org.jetbrains.kotlin.android" not in s:
+              s = s.replace(
+                  "plugins {",
+                  """plugins {
+              id 'org.jetbrains.kotlin.android' version '2.0.21' apply false""",
+                  1
+              )
+              root.write_text(s)
+
+          app = Path("app/build.gradle")
+          s = app.read_text()
+
+          if "org.jetbrains.kotlin.android" not in s:
+              s = s.replace(
+                  "plugins {",
+                  """plugins {
+              id 'org.jetbrains.kotlin.android'""",
+                  1
+              )
+              app.write_text(s)
+          PY
+
+      - name: Build Nishat AI APK
+        working-directory: ${{ env.PROJECT_ROOT }}
+        run: |
+          gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NishatAI-debug-apk
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/app-debug.apk
